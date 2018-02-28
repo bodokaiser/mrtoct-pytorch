@@ -1,4 +1,5 @@
 import os
+import h5py
 import nibabel as nb
 import numpy as np
 
@@ -31,3 +32,22 @@ class NIFTI(Dataset):
 
   def __len__(self):
     return len(self.filenames)
+
+
+class HDF5(Dataset):
+
+  def __init__(self, path, name, transform=None):
+    f = h5py.File(path, 'r')
+    self.dset = f[name]
+
+    self.meta = {}
+    for k, v in self.dset.attrs.items():
+      self.meta[k] = v
+
+    self.transform = transform
+
+  def __getitem__(self, index):
+    return self.dset[index]
+
+  def __len__(self):
+    return len(self.dset)
