@@ -6,14 +6,15 @@ from mrtoct import dataset
 class TestNIFTI(unittest.TestCase):
 
   def setUp(self):
-    self.training = dataset.NIFTI('data')
-    self.validation = dataset.NIFTI('data', train=False)
+    self.mr_dataset = dataset.NIFTI('data/training/mr')
+    self.ct_dataset = dataset.NIFTI('data/training/ct')
 
-  def testLength(self):
-    self.assertEqual(13, len(self.training))
-    self.assertEqual(4, len(self.validation))
+  def test_length(self):
+    self.assertEqual(13, len(self.mr_dataset))
+    self.assertEqual(13, len(self.ct_dataset))
 
-  def testGetItem(self):
-    mr, ct = self.training[0]
+  def test_get_item(self):
+    mr = self.mr_dataset[0]
+    ct = self.ct_dataset[0]
 
     self.assertTupleEqual(mr.shape, ct.shape)
