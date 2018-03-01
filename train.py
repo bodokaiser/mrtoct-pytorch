@@ -14,20 +14,23 @@ from mrtoct.dataset import HDF5, Combined
 from mrtoct.transform import Normalize, ToTensor
 
 
-def fmt_fname(prefix, ext, epoch, step, chckpt_path):
-  return os.path.join(chckpt_path, f'{prefix}-{epoch:04d}-{step:04d}.{ext}')
+def log_msg(step, message):
+  print(f'step: {step}, {message}')
 
 
-def save_model(model, epoch, step, checkpoint_path):
+def fmt_fname(prefix, ext, step, chckpt_path):
+  return os.path.join(chckpt_path, f'{prefix}-{step:05d}.{ext}')
+
+
+def save_model(model, step, checkpoint_path):
   torch.save(model.state_dict(),
-             fmt_fname('model', '.pt', epoch, step, checkpoint_path))
-  print(f'epoch: {epoch}, step: {step}, saved checkpoint')
+             fmt_fname('model', '.pt', step, checkpoint_path))
+  log_msg(step, 'saved checkpoint')
 
 
-def save_results(tensors, epoch, step, checkpoint_path):
+def save_results(tensors, step, checkpoint_path):
   save_image(torch.stack([t[0].data for t in tensors]),
-             fmt_fname('images', '.jpg', epoch, step, checkpoint_path))
-  print(f'epoch: {epoch}, step: {step}, saved results')
+             fmt_fname('images', '.jpg', step, checkpoint_path))
 
 
 def restore_checkpoint(model, checkpoint_path):
@@ -35,18 +38,15 @@ def restore_checkpoint(model, checkpoint_path):
   chkpts.sort()
 
   if len(chkpts) > 0:
-    _, epoch, step = chkpts[0][:-3].split('-')[:3]
-
-    epoch = int(epoch)
-    step = int(step)
+    step = int(chkpts[0][:-3].split('-')[1])
 
     model.load_state_dict(torch.load(os.path.join(
         checkpoint_path, chkpts[0])))
-    print(f'epoch: {epoch}, step: {step}, restored checkpoint')
+    log_msg(step, f'restored checkpoint {chkpts[0]}')
   else:
-    epoch = step = 0
+    step = 0
 
-  return epoch, step
+  return step
 
 
 def main(args):
@@ -58,7 +58,7 @@ def main(args):
 
   if not os.path.exists(args.checkpoint_path):
     os.makedirs(args.checkpoint_path)
-  epoch, step = restore_checkpoint(model, args.checkpoint_path)
+  step = restore_checkpoint(model, args.checkpoint_path)
 
   inputs_dataset = HDF5(args.inputs_path, 'slices')
   inputs_transform = Compose([
@@ -81,7 +81,7 @@ def main(args):
   criterion = L1Loss()
   optimizer = Adam(model.parameters(), args.learn_rate)
 
-  while epoch < args.num_epochs:
+  while True:
     for inputs, targets in loader:
       if args.cuda:
         inputs = inputs.cuda()
@@ -97,15 +97,13 @@ def main(args):
       optimizer.step()
 
       if step % args.log_steps == 0:
-        print(f'epoch: {epoch}, step: {step}, loss: {loss.data[0]}')
+        log_msg(step, f'loss: {loss.data[0]}')
 
-        save_results([inputs, outputs, targets],
-                     epoch, step, args.checkpoint_path)
+        save_results([inputs, outputs, targets], step, args.checkpoint_path)
       if step % args.save_steps == 0:
-        save_model(model, epoch, step, args.checkpoint_path)
+        save_model(model, step, args.checkpoint_path)
 
       step += 1
-    epoch += 1
 
 
 if __name__ == '__main__':
@@ -114,9 +112,8 @@ if __name__ == '__main__':
   parser.add_argument('--batch-size', default=16)
   parser.add_argument('--learn-rate', default=2e-4)
   parser.add_argument('--beta1-rate', default=5e-1)
-  parser.add_argument('--num-epochs', default=300)
   parser.add_argument('--log-steps', default=100)
-  parser.add_argument('--save-steps', default=2000)
+  parser.add_argument('--save-steps', default=1000)
   parser.add_argument('--inputs-path', required=True)
   parser.add_argument('--targets-path', required=True)
   parser.add_argument('--checkpoint-path', required=True)
