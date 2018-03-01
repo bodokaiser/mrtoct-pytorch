@@ -65,8 +65,10 @@ def main(args):
   criterion = L1Loss()
   optimizer = Adam(model.parameters(), args.learn_rate)
 
+  step = 0
+
   for epoch in range(1, args.num_epochs + 1):
-    for step, (inputs, targets) in enumerate(loader):
+    for inputs, targets in loader:
       if args.cuda:
         inputs = inputs.cuda()
         targets = targets.cuda()
@@ -87,6 +89,8 @@ def main(args):
       if step % args.save_steps == 0:
         save_model(model, args.checkpoint_path)
 
+      step += 1
+
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
@@ -96,7 +100,7 @@ if __name__ == '__main__':
   parser.add_argument('--beta1-rate', default=5e-1)
   parser.add_argument('--num-epochs', default=300)
   parser.add_argument('--log-steps', default=100)
-  parser.add_argument('--save-steps', default=500)
+  parser.add_argument('--save-steps', default=2000)
   parser.add_argument('--checkpoint')
   parser.add_argument('--inputs-path', required=True)
   parser.add_argument('--targets-path', required=True)
