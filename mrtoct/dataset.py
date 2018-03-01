@@ -51,3 +51,29 @@ class HDF5(Dataset):
 
   def __len__(self):
     return len(self.dset)
+
+
+class Combined(Dataset):
+
+  def __init__(self, dataset1, dataset2, transform=None,
+               target_transform=None):
+    self.dataset1 = dataset1
+    self.dataset2 = dataset2
+    assert len(self.dataset1) == len(self.dataset2)
+
+    self.transform = transform
+    self.target_transform = target_transform
+
+  def __getitem__(self, index):
+    x = self.dataset1[index]
+    y = self.dataset2[index]
+
+    if self.transform is not None:
+      x = self.transform(x)
+    if self.target_transform is not None:
+      y = self.target_transform(y)
+
+    return x, y
+
+  def __len__(self):
+    return len(self.dataset1)

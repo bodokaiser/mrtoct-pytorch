@@ -5,9 +5,13 @@ import torch.nn.functional as F
 
 
 def weight_init(module):
-  if isinstance(module, nn.Conv2d):
+  if any(isinstance(module, cl) for cl in [nn.Conv2d, nn.ConvTranspose2d]):
     init.xavier_uniform(module.weight.data)
-    init.xavier_uniform(module.bias.data)
+    module.weight.data.normal_(.0, .01)
+
+  if isinstance(module, nn.BatchNorm2d):
+    module.weight.data.normal_(1.0, 0.02)
+    module.bias.data.fill_(0)
 
 
 class Encoder(nn.Module):
@@ -15,7 +19,7 @@ class Encoder(nn.Module):
   def __init__(self, in_channels, out_channels, batch_norm=True):
     super().__init__()
 
-    self.conv = nn.Conv2d(in_channels, out_channels, 4, 2)
+    self.conv = nn.Conv2d(in_channels, out_channels, 4, 2, 1)
     self.norm = nn.BatchNorm2d(out_channels) if batch_norm else None
 
   def forward(self, x):
@@ -33,7 +37,7 @@ class Decoder(nn.Module):
                dropout=False):
     super().__init__()
 
-    self.conv = nn.ConvTranspose2d(in_channels, out_channels, 4, 2)
+    self.conv = nn.ConvTranspose2d(in_channels, out_channels, 4, 2, 1)
     self.norm = nn.BatchNorm2d(out_channels) if batch_norm else None
     self.drop = nn.Dropout2d() if dropout else None
 
@@ -60,20 +64,19 @@ class Generator(nn.Module):
     self.enc5 = Encoder(512, 512)
 
     self.dec5 = Decoder(512, 512, dropout=True)
-    self.dec4 = Decoder(512, 512)
-    self.dec3 = Decoder(512, 256)
-    self.dec2 = Decoder(256, 128)
-    self.dec1 = Decoder(128, 64)
+    self.dec4 = Decoder(1024, 256)
+    self.dec3 = Decoder(512, 128)
+    self.dec2 = Decoder(256, 64)
+    self.dec1 = Decoder(128, 1)
 
-    self.final = nn.ConvTranspose2d(64, 1, 3)
     self.apply(weight_init)
 
   def forward(self, x):
     enc1 = self.enc1(x)
     enc2 = self.enc2(enc1)
-    enc3 = self.enc2(enc2)
-    enc4 = self.enc2(enc3)
-    enc5 = self.enc2(enc4)
+    enc3 = self.enc3(enc2)
+    enc4 = self.enc4(enc3)
+    enc5 = self.enc5(enc4)
 
     dec5 = self.dec5(enc5)
     dec4 = self.dec4(torch.cat([dec5, enc4], 1))
@@ -81,6 +84,4 @@ class Generator(nn.Module):
     dec2 = self.dec2(torch.cat([dec3, enc2], 1))
     dec1 = self.dec1(torch.cat([dec2, enc1], 1))
 
-    final = self.final(dec1)
-
-    return F.tanh(final)
+    return F.tanh(dec1)
