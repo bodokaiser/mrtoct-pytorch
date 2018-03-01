@@ -85,3 +85,21 @@ class Generator(nn.Module):
     dec1 = self.dec1(torch.cat([dec2, enc1], 1))
 
     return F.tanh(dec1)
+
+
+class Discriminator(nn.Module):
+
+  def __init__(self):
+    super().__init__()
+
+    self.network = nn.Sequential(
+        nn.Conv2d(2, 64, 1, 1),
+        nn.LeakyReLU(.2),
+        nn.Conv2d(64, 128, 1, 1),
+        nn.BatchNorm2d(128),
+        nn.LeakyReLU(.2),
+        nn.Conv2d(128, 1, 1, 1),
+    )
+
+  def forward(self, x):
+    return self.network(x)
