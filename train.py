@@ -14,17 +14,19 @@ from mrtoct.dataset import HDF5, Combined
 from mrtoct.transform import Normalize, ToTensor
 
 
-def save_model(model, epoch, step, checkpoint_path):
-  filename = os.path.join(checkpoint_path, f'model-{epoch}-{step}.pt')
+def fmt_fname(prefix, ext, epoch, step, chckpt_path):
+  return os.path.join(chckpt_path, f'{prefix}-{epoch:04d}-{step:04d}.{ext}')
 
-  torch.save(model.state_dict(), filename)
+
+def save_model(model, epoch, step, checkpoint_path):
+  torch.save(model.state_dict(),
+             fmt_fname('model', '.pt', epoch, step, checkpoint_path))
   print(f'epoch: {epoch}, step: {step}, saved checkpoint')
 
 
 def save_results(tensors, epoch, step, checkpoint_path):
-  filename = os.path.join(checkpoint_path, f'results-{epoch}-{step}.jpg')
-
-  save_image(torch.stack([t[0].data for t in tensors]), filename)
+  save_image(torch.stack([t[0].data for t in tensors]),
+             fmt_fname('images', '.jpg', epoch, step, checkpoint_path))
   print(f'epoch: {epoch}, step: {step}, saved results')
 
 
@@ -34,6 +36,9 @@ def restore_checkpoint(model, checkpoint_path):
 
   if len(chkpts) > 0:
     _, epoch, step = chkpts[0][:-3].split('-')[:3]
+
+    epoch = int(epoch)
+    step = int(step)
 
     model.load_state_dict(torch.load(os.path.join(
         checkpoint_path, chkpts[0])))
