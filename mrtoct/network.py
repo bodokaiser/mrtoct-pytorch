@@ -64,9 +64,9 @@ class Generator(nn.Module):
     self.enc5 = Encoder(512, 512)
 
     self.dec5 = Decoder(512, 512, dropout=True)
-    self.dec4 = Decoder(1024, 256)
+    self.dec4 = Decoder(1024, 256, dropout=True)
     self.dec3 = Decoder(512, 128)
-    self.dec2 = Decoder(256, 64)
+    self.dec2 = Decoder(256, 64, dropout=True)
     self.dec1 = Decoder(128, 1)
 
     self.apply(weight_init)
