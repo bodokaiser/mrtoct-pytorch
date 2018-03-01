@@ -1,5 +1,4 @@
 import os
-import time
 import torch
 import argparse
 
@@ -15,20 +14,34 @@ from mrtoct.dataset import HDF5, Combined
 from mrtoct.transform import Normalize, ToTensor
 
 
-def timestamp():
-  return time.strftime('%d%m%Y%H%M%S')
-
-
-def save_model(model, checkpoint_path):
-  filename = os.path.join(checkpoint_path, f'{timestamp()}.pt')
+def save_model(model, epoch, step, checkpoint_path):
+  filename = os.path.join(checkpoint_path, f'model-{epoch}-{step}.pt')
 
   torch.save(model.state_dict(), filename)
+  print(f'epoch: {epoch}, step: {step}, saved checkpoint')
 
 
-def save_results(tensors, checkpoint_path):
-  filename = os.path.join(checkpoint_path, f'{timestamp()}.jpg')
+def save_results(tensors, epoch, step, checkpoint_path):
+  filename = os.path.join(checkpoint_path, f'results-{epoch}-{step}.jpg')
 
   save_image(torch.stack([t[0].data for t in tensors]), filename)
+  print(f'epoch: {epoch}, step: {step}, saved results')
+
+
+def restore_checkpoint(model, checkpoint_path):
+  chkpts = [f for f in os.listdir(checkpoint_path) if f.endswith('.pt')]
+  chkpts.sort()
+
+  if len(chkpts) > 0:
+    _, epoch, step = chkpts[0][:-3].split('-')[:3]
+
+    model.load_state_dict(torch.load(os.path.join(
+        checkpoint_path, chkpts[0])))
+    print(f'epoch: {epoch}, step: {step}, restored checkpoint')
+  else:
+    epoch = step = 0
+
+  return epoch, step
 
 
 def main(args):
@@ -37,12 +50,10 @@ def main(args):
 
   if args.cuda:
     model = model.cuda()
-  if args.checkpoint:
-    model.load_state_dict(torch.load(os.path.join(
-        args.checkpoint_path, args.checkpoint)))
 
   if not os.path.exists(args.checkpoint_path):
     os.makedirs(args.checkpoint_path)
+  epoch, step = restore_checkpoint(model, args.checkpoint_path)
 
   inputs_dataset = HDF5(args.inputs_path, 'slices')
   inputs_transform = Compose([
@@ -65,9 +76,7 @@ def main(args):
   criterion = L1Loss()
   optimizer = Adam(model.parameters(), args.learn_rate)
 
-  step = 0
-
-  for epoch in range(1, args.num_epochs + 1):
+  while epoch < args.num_epochs:
     for inputs, targets in loader:
       if args.cuda:
         inputs = inputs.cuda()
@@ -83,13 +92,15 @@ def main(args):
       optimizer.step()
 
       if step % args.log_steps == 0:
-        print(f'step: {step}, loss: {loss.data[0]}')
+        print(f'epoch: {epoch}, step: {step}, loss: {loss.data[0]}')
 
-        save_results([inputs, outputs, targets], args.checkpoint_path)
+        save_results([inputs, outputs, targets],
+                     epoch, step, args.checkpoint_path)
       if step % args.save_steps == 0:
-        save_model(model, args.checkpoint_path)
+        save_model(model, epoch, step, args.checkpoint_path)
 
       step += 1
+    epoch += 1
 
 
 if __name__ == '__main__':
@@ -101,7 +112,6 @@ if __name__ == '__main__':
   parser.add_argument('--num-epochs', default=300)
   parser.add_argument('--log-steps', default=100)
   parser.add_argument('--save-steps', default=2000)
-  parser.add_argument('--checkpoint')
   parser.add_argument('--inputs-path', required=True)
   parser.add_argument('--targets-path', required=True)
   parser.add_argument('--checkpoint-path', required=True)
