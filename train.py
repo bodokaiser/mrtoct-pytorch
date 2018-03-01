@@ -25,10 +25,10 @@ def save_model(model, checkpoint_path):
   torch.save(model.state_dict(), filename)
 
 
-def save_results(inputs, outputs, targets, checkpoint_path):
+def save_results(tensors, checkpoint_path):
   filename = os.path.join(checkpoint_path, f'{timestamp()}.jpg')
 
-  save_image(torch.stack([inputs[0], outputs[0], targets[0]]), filename)
+  save_image(torch.stack([t[0].data for t in tensors]), filename)
 
 
 def main(args):
@@ -40,6 +40,9 @@ def main(args):
   if args.checkpoint:
     model.load_state_dict(torch.load(os.path.join(
         args.checkpoint_path, args.checkpoint)))
+
+  if not os.path.exists(args.checkpoint_path):
+    os.makedirs(args.checkpoint_path)
 
   inputs_dataset = HDF5(args.inputs_path, 'slices')
   inputs_transform = Compose([
@@ -80,7 +83,7 @@ def main(args):
       if step % args.log_steps == 0:
         print(f'step: {step}, loss: {loss.data[0]}')
 
-        save_image(inputs, outputs, targets, args.checkpoint_path)
+        save_results([inputs, outputs, targets], args.checkpoint_path)
       if step % args.save_steps == 0:
         save_model(model, args.checkpoint_path)
 
@@ -95,8 +98,8 @@ if __name__ == '__main__':
   parser.add_argument('--log-steps', default=100)
   parser.add_argument('--save-steps', default=500)
   parser.add_argument('--checkpoint')
-  parser.add_argument('--inputs-path')
-  parser.add_argument('--targets-path')
-  parser.add_argument('--checkpoint-path')
+  parser.add_argument('--inputs-path', required=True)
+  parser.add_argument('--targets-path', required=True)
+  parser.add_argument('--checkpoint-path', required=True)
 
   main(parser.parse_args())
