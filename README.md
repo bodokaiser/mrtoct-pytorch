@@ -1,3 +1,8 @@
 # MRtoCT
 
-Conversion from MRI to CT using GANs.
+Pytorch model for MRI to CT synthesis.
+
+## Preprocessing
+
+Preproccessing scripts can be found
+[here](https://github.com/bodokaiser/mrtoct-matlab).
