@@ -42,9 +42,7 @@ class HDF5(Dataset):
 
   def __init__(self, path, field):
     f = h5py.File(path, 'r')
-
     self.dataset = f[field]
-    assert len(self.inputs) == len(self.targets)
 
   def __getitem__(self, index):
     if index >= len(self):
@@ -67,11 +65,14 @@ class Patch(Dataset):
     assert len(self.inputs) == len(self.targets)
 
     self.input_norm = Normalize(self.inputs.vmax, self.inputs.vmin)
-    self.target_norm = Normalize(self.targets.vmax, self.targets.vmax)
+    self.target_norm = Normalize(self.targets.vmax, self.targets.vmin)
+
+    self.transform = transform
+    self.target_transform = target_transform
 
   def __getitem__(self, index):
-    input = self.input_norm(self.targets[index])
-    target = self.target_norm(self.inputs[index])
+    input = self.input_norm(self.inputs[index])
+    target = self.target_norm(self.targets[index])
 
     if self.transform is not None:
       input = self.transform(input)
@@ -79,3 +80,6 @@ class Patch(Dataset):
       target = self.target_transform(target)
 
     return input, target
+
+  def __len__(self):
+    return len(self.inputs)

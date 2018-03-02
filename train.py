@@ -6,12 +6,11 @@ from torch.nn import L1Loss
 from torch.optim import Adam
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
-from torchvision.transforms import Compose
 from torchvision.utils import save_image
 
 from mrtoct.network import Generator
-from mrtoct.dataset import HDF5, Combined
-from mrtoct.transform import Normalize, ToTensor
+from mrtoct.dataset import Patch
+from mrtoct.transform import ToTensor
 
 
 def log_msg(step, message):
@@ -19,7 +18,7 @@ def log_msg(step, message):
 
 
 def fmt_fname(prefix, ext, step, chckpt_path):
-  return os.path.join(chckpt_path, f'{prefix}-{step:05d}.{ext}')
+  return os.path.join(chckpt_path, f'{prefix}-{step:05d}{ext}')
 
 
 def save_model(model, step, checkpoint_path):
@@ -60,22 +59,9 @@ def main(args):
     os.makedirs(args.checkpoint_path)
   step = restore_checkpoint(model, args.checkpoint_path)
 
-  inputs_dataset = HDF5(args.inputs_path, 'slices')
-  inputs_transform = Compose([
-      Normalize(inputs_dataset.meta['vmax'],
-                inputs_dataset.meta['vmin']),
-      ToTensor(),
-  ])
-
-  targets_dataset = HDF5(args.targets_path, 'slices')
-  targets_transform = Compose([
-      Normalize(targets_dataset.meta['vmax'],
-                targets_dataset.meta['vmin']),
-      ToTensor(),
-  ])
-
-  dataset = Combined(inputs_dataset, targets_dataset,
-                     inputs_transform, targets_transform)
+  dataset = Patch(args.data_path,
+                  transform=ToTensor(),
+                  target_transform=ToTensor())
   loader = DataLoader(dataset, args.batch_size, shuffle=True)
 
   criterion = L1Loss()
@@ -100,7 +86,7 @@ def main(args):
         log_msg(step, f'loss: {loss.data[0]}')
 
         save_results([inputs, outputs, targets], step, args.checkpoint_path)
-      if step % args.save_steps == 0:
+      if step % args.save_steps == 0 and step > 0:
         save_model(model, step, args.checkpoint_path)
 
       step += 1
@@ -114,8 +100,7 @@ if __name__ == '__main__':
   parser.add_argument('--beta1-rate', default=5e-1)
   parser.add_argument('--log-steps', default=100)
   parser.add_argument('--save-steps', default=1000)
-  parser.add_argument('--inputs-path', required=True)
-  parser.add_argument('--targets-path', required=True)
+  parser.add_argument('--data-path', required=True)
   parser.add_argument('--checkpoint-path', required=True)
 
   main(parser.parse_args())
