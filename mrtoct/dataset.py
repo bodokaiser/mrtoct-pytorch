@@ -19,8 +19,10 @@ class NIFTI(Dataset):
     self.filenames.sort()
 
   def __getitem__(self, index):
-    volume = nb.load(self.filenames[index]).get_data()
+    if index >= len(self.filenames):
+      raise IndexError
 
+    volume = nb.load(self.filenames[index]).get_data()
     volume = np.transpose(volume)
     volume = np.flip(volume, 0)
     volume = np.flip(volume, 1)
@@ -47,6 +49,9 @@ class HDF5(Dataset):
     self.transform = transform
 
   def __getitem__(self, index):
+    if index >= len(self.dset):
+      raise IndexError
+
     return self.dset[index]
 
   def __len__(self):
