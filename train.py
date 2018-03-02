@@ -18,7 +18,7 @@ def log_msg(step, message):
 
 
 def fmt_fname(prefix, ext, step, chckpt_path):
-  return os.path.join(chckpt_path, f'{prefix}-{step:05d}{ext}')
+  return os.path.join(chckpt_path, f'{prefix}-{step:07d}{ext}')
 
 
 def save_model(model, step, checkpoint_path):
