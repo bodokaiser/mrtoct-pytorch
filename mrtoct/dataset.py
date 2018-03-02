@@ -5,6 +5,8 @@ import numpy as np
 
 from torch.utils.data import Dataset
 
+from mrtoct.transform import Normalize
+
 
 def is_nifti(filename):
   return any(filename.endswith(ext) for ext in ['.nii', '.nii.gz'])
@@ -38,47 +40,42 @@ class NIFTI(Dataset):
 
 class HDF5(Dataset):
 
-  def __init__(self, path, name, transform=None):
+  def __init__(self, path, field):
     f = h5py.File(path, 'r')
-    self.dset = f[name]
 
-    self.meta = {}
-    for k, v in self.dset.attrs.items():
-      self.meta[k] = v
-
-    self.transform = transform
+    self.dataset = f[field]
+    assert len(self.inputs) == len(self.targets)
 
   def __getitem__(self, index):
-    if index >= len(self.dset):
+    if index >= len(self):
       raise IndexError
 
-    return self.dset[index]
+    return self.dataset[index]
+
+  def __getattr__(self, name):
+    return self.dataset.attrs[name]
 
   def __len__(self):
-    return len(self.dset)
+    return len(self.dataset)
 
 
-class Combined(Dataset):
+class Patch(Dataset):
 
-  def __init__(self, dataset1, dataset2, transform=None,
-               target_transform=None):
-    self.dataset1 = dataset1
-    self.dataset2 = dataset2
-    assert len(self.dataset1) == len(self.dataset2)
+  def __init__(self, path, transform=None, target_transform=None):
+    self.inputs = HDF5(path, 'inputs')
+    self.targets = HDF5(path, 'targets')
+    assert len(self.inputs) == len(self.targets)
 
-    self.transform = transform
-    self.target_transform = target_transform
+    self.input_norm = Normalize(self.inputs.vmax, self.inputs.vmin)
+    self.target_norm = Normalize(self.targets.vmax, self.targets.vmax)
 
   def __getitem__(self, index):
-    x = self.dataset1[index]
-    y = self.dataset2[index]
+    input = self.input_norm(self.targets[index])
+    target = self.target_norm(self.inputs[index])
 
     if self.transform is not None:
-      x = self.transform(x)
+      input = self.transform(input)
     if self.target_transform is not None:
-      y = self.target_transform(y)
+      target = self.target_transform(target)
 
-    return x, y
-
-  def __len__(self):
-    return len(self.dataset1)
+    return input, target
