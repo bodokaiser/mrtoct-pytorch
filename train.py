@@ -36,12 +36,14 @@ def restore_checkpoint(model, checkpoint_path):
   chkpts = [f for f in os.listdir(checkpoint_path) if f.endswith('.pt')]
   chkpts.sort()
 
+  chkpt = chkpts[-1]
+
   if len(chkpts) > 0:
-    step = int(chkpts[0][:-3].split('-')[1])
+    step = int(chkpt[:-3].split('-')[1])
 
     model.load_state_dict(torch.load(os.path.join(
-        checkpoint_path, chkpts[0])))
-    log_msg(step, f'restored checkpoint {chkpts[0]}')
+        checkpoint_path, chkpt)))
+    log_msg(step, f'restored checkpoint {chkpt}')
   else:
     step = 0
 
